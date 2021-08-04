@@ -1,54 +1,46 @@
 # -*- coding: utf-8 -*-
-# """
-# Created on Tue Jul 30 10:02:48 2019
+"""
+Created on Fri Jul 23 08:59:01 2021
 
-# @author: Wenyang Lyu and Shibabrat Naik
-
-# Script to define expressions for the uncoupled quartic Hamiltonian
-# """
+@author: alexa
+"""
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import time
 import math
+from numpy import pi as pi
 from scipy import optimize
- 
 
-#% Begin problem specific functions
+
+#par = [MASSA, MASSB, d_1, d_2, SADDLE_E]
+
 def upo_analytical(total_energy, t, par):
     """
     Returns the analytical solution of the unstable periodic orbit at 
     total energy and discretized at the time points, t.
-
     Parameters
     ----------
     total_energy : float
         Total energy of the unstable periodic orbit
-
     t : 1d numpy array
         vector of time points at which analytical solution is to be evaluated
-
     parameters : float (list)
         model parameters
-
     Returns
     -------
         2d numpy array
         analytical solution evaluated at the time points
-
     """
     
-    OMEGA = par[5]
+    d2 = par[3]
 
-    y_t = np.real(np.sqrt(total_energy/2)*( np.exp(1j*OMEGA*t) \
-                                     + np.exp(-1j*OMEGA*t)))
+    y_t = np.sqrt((total_energy-1)/(d2*pi))*np.cos(t)
     
-    py_t = np.real(1j*np.sqrt(total_energy/2)*( np.exp(1j*OMEGA*t) \
-                                     - np.exp(-1j*OMEGA*t)))
+    py_t = np.sqrt(2*(total_energy-1))*np.sin(t)
     
     return np.array([y_t,py_t])
-
 
 
 def init_guess_eqpt_uncoupled(eqNum, par):
@@ -73,12 +65,7 @@ def init_guess_eqpt_uncoupled(eqNum, par):
     """
     
     if eqNum == 1:
-        x0 = [0, 0]
-    elif eqNum == 2:
-        x0 = [np.sqrt(par[3]/par[4]),0] 
-    elif eqNum == 3:
-        x0 = [-np.sqrt(par[3]/par[4]),0]  
-    
+        x0 = [1, 0]
     return x0
 
 
@@ -100,8 +87,8 @@ def grad_pot_uncoupled(x,par):
 
     """ 
     
-    dVdx = -par[3]*x[0]+par[4]*(x[0])**3
-    dVdy = par[5]*x[1]
+    dVdx = -2*pi*np.sin(2*pi*x[0])
+    dVdy = 2*par[3]*pi*x[1]
     
     F = [-dVdx, -dVdy]
     
@@ -130,7 +117,7 @@ def pot_energy_uncoupled(x, y, par):
     
     """
     
-    return -0.5*par[3]*x**2+0.25*par[4]*x**4 +0.5*par[5]*y**2
+    return np.cos(2*pi*x) + par[3]*pi*y**2
 
 
 def eigvector_uncoupled(par):
@@ -182,7 +169,7 @@ def guess_lin_uncoupled(eqPt, Ax, par):
     
     correcx, correcy = eigvector_uncoupled(par)
     
-    return [eqPt[0] + Ax*correcx,eqPt[1] + Ax*correcy,0,0]
+    return [1, Ax, 0,0]
 
 
 def jacobian_uncoupled(eqPt, par):
@@ -207,14 +194,10 @@ def jacobian_uncoupled(eqPt, par):
     
     x,y,px,py = eqPt[0:4]
     
-    # The first order derivative of the Hamiltonian.
-    dVdx = -par[3]*x+par[4]*x**3
-    dVdy = par[5]*y
-
     # The following is the Jacobian matrix 
-    d2Vdx2 = -par[3]+par[4]*3*x**2
+    d2Vdx2 = -4*(pi**2)*np.cos(2*pi*x)
         
-    d2Vdy2 = par[5]
+    d2Vdy2 = 2*par[3]*pi
 
     d2Vdydx = 0
         
@@ -258,17 +241,17 @@ def variational_eqns_uncoupled(t,PHI,par):
     
     
     # The first order derivative of the potential energy.
-    dVdx = -par[3]*x+par[4]*x**3
-    dVdy = par[5]*y
+    dVdx = -2*pi*np.sin(2*pi*x)
+    dVdy = 2*par[3]*pi*y
 
     # The second order derivative of the potential energy.  
-    d2Vdx2 = -par[3]+par[4]*3*x**2
+    d2Vdx2 = -4*(pi**2)*np.cos(2*pi*x)
         
-    d2Vdy2 = par[5]
+    d2Vdy2 = 2*par[3]*pi
 
     d2Vdydx = 0
-
-    d2Vdxdy = d2Vdydx    
+        
+    d2Vdxdy = d2Vdydx  
 
 
     Df    = np.array([[  0,     0,    par[0],    0],
@@ -376,7 +359,7 @@ def get_coord_uncoupled(x,y, E, par):
         Potential energy
     """
     
-    return -0.5*par[3]*x**2+0.25*par[4]*x**4 +0.5*par[5]*y**2 - E
+    return np.cos(2*pi*x) + par[3]*pi*y**2 - E
 
 
 def diffcorr_acc_corr_uncoupled(coords, phi_t1, x0, par):
@@ -408,13 +391,19 @@ def diffcorr_acc_corr_uncoupled(coords, phi_t1, x0, par):
     
     x1, y1, dxdot1, dydot1 = coords
     
-    dVdx = -par[3]*x1+par[4]*(x1)**3
-    dVdy = par[5]*y1
+    dVdx = -2*pi*np.sin(2*pi*x1)
+    dVdy = 2*par[3]*pi*y1
     vxdot1 = -dVdx
     vydot1 = -dVdy
+    
     #correction to the initial x0
-    correctx0 = dxdot1/(phi_t1[2,0] - phi_t1[3,0]*(vxdot1/vydot1))
-    x0[0] = x0[0] - correctx0 # correction in x coodinate.
+    #correctx0 = dxdot1/(phi_t1[2,0] - phi_t1[3,0]*(vxdot1/vydot1))
+    #x0[0] = x0[0] - correctx0 # correction in x coodinate.
+
+
+    #correction to the initial y0
+    correcty0 = dydot1/(phi_t1[3,1] - phi_t1[2,1]*vydot1*(1/vxdot1))
+    x0[1] = x0[1] - correcty0
 
     return x0
 
@@ -526,8 +515,8 @@ def guess_coords_uncoupled(guess1, guess2, i, n, e, \
     print("h is ",h)
     xguess = guess1[0]+h
     f = lambda y: get_coord_model(xguess,y,e,par)
-    yanalytic = math.sqrt((e + 0.5*par[3]*xguess**2-0.25*par[4]*xguess**4)/(0.5*par[5])) #uncoupled
-    yguess = optimize.newton(f,yanalytic)   # to find the x coordinate for a given y 
+    yanalytic = math.sqrt((e - np.cos(2*pi*xguess) )/(pi*par[3])) #uncoupled
+    yguess = optimize.newton(f, yanalytic)   
     
     return xguess, yguess
 
@@ -595,8 +584,8 @@ def ham2dof_uncoupled(t, x, par):
     
     xDot = np.zeros(4)
     
-    dVdx = -par[3]*x[0]+par[4]*(x[0])**3
-    dVdy = par[5]*x[1]
+    dVdx = -2*pi*np.sin(2*pi*x[0])
+    dVdy = 2*par[3]*pi*x[1]
         
     xDot[0] = x[2]/par[0]
     xDot[1] = x[3]/par[1]

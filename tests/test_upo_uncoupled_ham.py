@@ -69,7 +69,7 @@ class TestUnstablePeriodicOrbit(unittest.TestCase):
 
         for deltaE_val in deltaE_vals:
             # po_fam_file = "x0_diffcorr_deltaE%s_uncoupled.dat" %(deltaE_val)
-            with open(path_to_data + "x0_diffcorr_deltaE%s_uncoupled.dat" %(deltaE_val)) as po_fam_file: 
+            with open(path_to_data + "x0_diffcorr_deltaE%s_uncoupled.dat" %(deltaE_val), 'a+') as po_fam_file: 
                 x0podata = np.loadtxt(po_fam_file.name)
                 x0po_diffcorr = x0podata[0:4]
                 # print(x0po_diffcorr)

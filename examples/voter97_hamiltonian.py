@@ -1,57 +1,23 @@
 # -*- coding: utf-8 -*-
-# """
-# Created on Tue Jul 30 10:02:48 2019
+"""
+Created on Fri Jul 23 12:26:58 2021
 
-# @author: Wenyang Lyu and Shibabrat Naik
+Script to define expressions for the Voter97 Hamiltonian
 
-# Script to define expressions for the uncoupled quartic Hamiltonian
-# """
-
+@author: alexa
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp
 import time
 import math
+from math import pi as pi
 from scipy import optimize
- 
 
-#% Begin problem specific functions
-def upo_analytical(total_energy, t, par):
-    """
-    Returns the analytical solution of the unstable periodic orbit at 
-    total energy and discretized at the time points, t.
-
-    Parameters
-    ----------
-    total_energy : float
-        Total energy of the unstable periodic orbit
-
-    t : 1d numpy array
-        vector of time points at which analytical solution is to be evaluated
-
-    parameters : float (list)
-        model parameters
-
-    Returns
-    -------
-        2d numpy array
-        analytical solution evaluated at the time points
-
-    """
-    
-    OMEGA = par[5]
-
-    y_t = np.real(np.sqrt(total_energy/2)*( np.exp(1j*OMEGA*t) \
-                                     + np.exp(-1j*OMEGA*t)))
-    
-    py_t = np.real(1j*np.sqrt(total_energy/2)*( np.exp(1j*OMEGA*t) \
-                                     - np.exp(-1j*OMEGA*t)))
-    
-    return np.array([y_t,py_t])
+#parameters = [massA, massB, d_1, d_2, SADDLE_E]
 
 
-
-def init_guess_eqpt_uncoupled(eqNum, par):
+def init_guess_eqpt_voter97(eqNum, parameters):
     """
     Returns guess for solving configuration space coordinates of the equilibrium points.  
 
@@ -73,16 +39,16 @@ def init_guess_eqpt_uncoupled(eqNum, par):
     """
     
     if eqNum == 1:
-        x0 = [0, 0]
+        x0 = [1, -parameters[2]/(2*parameters[3]*pi)]
     elif eqNum == 2:
-        x0 = [np.sqrt(par[3]/par[4]),0] 
+        x0 = [0, 1/np.sqrt(2)]  # EQNUM = 2, center-center
     elif eqNum == 3:
-        x0 = [-np.sqrt(par[3]/par[4]),0]  
+        x0 = [0, -1/np.sqrt(2)] # EQNUM = 3, center-center
     
     return x0
 
 
-def grad_pot_uncoupled(x,par):
+def grad_pot_voter97(x, parameters):
     """ Returns the negative of the gradient of the potential energy function 
     
     Parameters
@@ -98,17 +64,17 @@ def grad_pot_uncoupled(x,par):
     F : float (list of size 2)
         configuration space coordinates of the guess: [x, y]
 
-    """ 
-    
-    dVdx = -par[3]*x[0]+par[4]*(x[0])**3
-    dVdy = par[5]*x[1]
+    """
+     
+    dVdx = -2*pi*np.sin(2*pi*x[0])*(1 + parameters[2]*x[1])
+    dVdy = parameters[2]*np.cos(2*pi*x[0]) + 2*parameters[3]*pi*x[1]
     
     F = [-dVdx, -dVdy]
     
     return F
 
 
-def pot_energy_uncoupled(x, y, par):
+def pot_energy_voter97(x, y, parameters):
     """ Returns the potential energy at the configuration space coordinates 
     
 
@@ -130,10 +96,11 @@ def pot_energy_uncoupled(x, y, par):
     
     """
     
-    return -0.5*par[3]*x**2+0.25*par[4]*x**4 +0.5*par[5]*y**2
+    return np.cos(2*pi*x)*(1 + parameters[2]*y) + parameters[3]*pi*y**2
 
 
-def eigvector_uncoupled(par):
+
+def eigvector_voter97(parameters):
     """ Returns the flag for the correction factor to the eigenvectors for the linear guess of the unstable periodic orbit.
     
     Parameters
@@ -150,14 +117,12 @@ def eigvector_uncoupled(par):
         flag to use the y-component of the eigenvector 
     
     """
-
     correcx = 1
-    correcy = 1
+    correcy = 0
     
     return correcx, correcy
 
-
-def guess_lin_uncoupled(eqPt, Ax, par):
+def guess_lin_voter97(eqPt, Ax, parameters):
     """ Returns an initial guess as list of coordinates in the phase space 
     
     This guess is based on the linearization at the saddle equilibrium point and is used for starting the differential correction iteration 
@@ -178,14 +143,12 @@ def guess_lin_uncoupled(eqPt, Ax, par):
     float (list of size 4)
         phase space coordinates of the initial guess in the phase space
          
-    """  
-    
-    correcx, correcy = eigvector_uncoupled(par)
-    
-    return [eqPt[0] + Ax*correcx,eqPt[1] + Ax*correcy,0,0]
+    """    
+ 
+    return [1, -parameters[2]/(2*parameters[3]*pi) + Ax, 0, 0]
 
 
-def jacobian_uncoupled(eqPt, par):
+def jacobian_voter97(eqPt, parameters):
     """ Returns Jacobian of the Hamiltonian vector field 
     
     Parameters
@@ -207,28 +170,29 @@ def jacobian_uncoupled(eqPt, par):
     
     x,y,px,py = eqPt[0:4]
     
-    # The first order derivative of the Hamiltonian.
-    dVdx = -par[3]*x+par[4]*x**3
-    dVdy = par[5]*y
+    #The first order derivative of the Hamiltonian.
+    dVdx = -2*pi*np.sin(2*pi*x)*(1 + parameters[2]*y)
+    dVdy = parameters[2]*np.cos(2*pi*x) + 2*parameters[3]*pi*y
 
     # The following is the Jacobian matrix 
-    d2Vdx2 = -par[3]+par[4]*3*x**2
-        
-    d2Vdy2 = par[5]
+    d2Vdx2 = -4*(pi**2)*np.cos(2*pi*x)*(1 + parameters[2]*y)
+    
+    d2Vdy2 = 2*parameters[3]*pi
 
-    d2Vdydx = 0
-        
+    d2Vdydx = -2*pi*parameters[2]*np.sin(2*pi*x)
+
     d2Vdxdy = d2Vdydx    
 
-    Df = np.array([[  0,     0,    par[0],    0],
-                   [0,     0,    0,    par[1]],
+    Df = np.array([[  0,     0,    parameters[0],    0],
+                   [0,     0,    0,    parameters[1]],
                    [-d2Vdx2,  -d2Vdydx,   0,    0],
                    [-d2Vdxdy, -d2Vdy2,    0,    0]])
     
     return Df
 
 
-def variational_eqns_uncoupled(t,PHI,par):
+
+def variational_eqns_voter97(t,PHI,parameters):
     """    
     Returns the state transition matrix, PHI(t,t0), where Df(t) is the Jacobian of the Hamiltonian vector field
     
@@ -256,40 +220,38 @@ def variational_eqns_uncoupled(t,PHI,par):
     phimatrix  = np.reshape(PHI[0:16],(4,4))
     x,y,px,py = PHI[16:20]
     
-    
-    # The first order derivative of the potential energy.
-    dVdx = -par[3]*x+par[4]*x**3
-    dVdy = par[5]*y
+    # The first order derivative of the Hamiltonian.
+    dVdx = -2*pi*np.sin(2*pi*x)*(1 + parameters[2]*y)
+    dVdy = parameters[2]*np.cos(2*pi*x) + 2*parameters[3]*pi*y
 
-    # The second order derivative of the potential energy.  
-    d2Vdx2 = -par[3]+par[4]*3*x**2
+    # The second order derivative of the potential energy. 
+    d2Vdx2 = -4*(pi**2)*np.cos(2*pi*x)*(1 + parameters[2]*y)
         
-    d2Vdy2 = par[5]
+    d2Vdy2 = 2*parameters[3]*pi
 
-    d2Vdydx = 0
+    d2Vdydx = -2*pi*parameters[2]*np.sin(2*pi*x)
 
     d2Vdxdy = d2Vdydx    
 
-
-    Df    = np.array([[  0,     0,    par[0],    0],
-              [0,     0,    0,    par[1]],
-              [-d2Vdx2,  -d2Vdydx,   0,    0],
-              [-d2Vdxdy, -d2Vdy2,    0,    0]])
+    Df = np.array([[  0,     0,    parameters[0],    0],
+                   [0,     0,    0,    parameters[1]],
+                   [-d2Vdx2,  -d2Vdydx,   0,    0],
+                   [-d2Vdxdy, -d2Vdy2,    0,    0]])
 
     
     phidot = np.matmul(Df, phimatrix) # variational equation
 
     PHIdot        = np.zeros(20)
     PHIdot[0:16]  = np.reshape(phidot,(1,16)) 
-    PHIdot[16]    = px/par[0]
-    PHIdot[17]    = py/par[1]
+    PHIdot[16]    = px
+    PHIdot[17]    = py
     PHIdot[18]    = -dVdx 
     PHIdot[19]    = -dVdy
     
     return list(PHIdot)
 
 
-def diffcorr_setup_uncoupled():
+def diffcorr_setup_voter97():
     """ 
     Returns iteration conditions for differential correction.
 
@@ -313,8 +275,8 @@ def diffcorr_setup_uncoupled():
     """
     
     dxdot1 = 1
-    correctx0= 0
-    MAXdxdot1 = 1.e-10 
+    correctx0 = 0
+    MAXdxdot1 = 1.e-10
     drdot1 = dxdot1
     correctr0 = correctx0
     MAXdrdot1 = MAXdxdot1
@@ -322,7 +284,7 @@ def diffcorr_setup_uncoupled():
     return [drdot1, correctr0, MAXdrdot1]
 
 
-def conv_coord_uncoupled(x1, y1, dxdot1, dydot1):
+def conv_coord_voter97(x1, y1, dxdot1, dydot1):
     """
     Returns the variable we want to keep fixed during differential correction.
     
@@ -350,7 +312,7 @@ def conv_coord_uncoupled(x1, y1, dxdot1, dydot1):
     return dxdot1
 
 
-def get_coord_uncoupled(x,y, E, par):
+def get_coord_voter97(x,y, E, parameters):
     """ 
     Function that returns the potential energy for a given total energy with one of the configuration space coordinate being fixed
 
@@ -375,11 +337,10 @@ def get_coord_uncoupled(x,y, E, par):
         float
         Potential energy
     """
-    
-    return -0.5*par[3]*x**2+0.25*par[4]*x**4 +0.5*par[5]*y**2 - E
 
+    return np.cos(2*pi*x)*(1 + parameters[2]*y) + parameters[3]*pi*y**2 - E
 
-def diffcorr_acc_corr_uncoupled(coords, phi_t1, x0, par):
+def diffcorr_acc_corr_voter97(coords, phi_t1, x0, parameters):
     """ 
     Returns the updated guess for the initial condition after applying 
     small correction based on the leading order terms. 
@@ -407,20 +368,22 @@ def diffcorr_acc_corr_uncoupled(coords, phi_t1, x0, par):
     """
     
     x1, y1, dxdot1, dydot1 = coords
-    
-    dVdx = -par[3]*x1+par[4]*(x1)**3
-    dVdy = par[5]*y1
+
+    dVdx = -2*pi*np.sin(2*pi*x1)*(1 + parameters[2]*y1)
+    dVdy = parameters[2]*np.cos(2*pi*x1) + 2*parameters[3]*pi*y1
+
     vxdot1 = -dVdx
     vydot1 = -dVdy
-    #correction to the initial x0
-    correctx0 = dxdot1/(phi_t1[2,0] - phi_t1[3,0]*(vxdot1/vydot1))
-    x0[0] = x0[0] - correctx0 # correction in x coodinate.
-
+    
+    #correction to the initial y0
+    correcty0 = dydot1/(phi_t1[3,1] - phi_t1[2,1]*(vydot1/vxdot1))
+    x0[1] = x0[1] - correcty0
+    
     return x0
 
 
-def configdiff_uncoupled(guess1, guess2, ham2dof_model, \
-                        half_period_model, n_turn, par):
+def configdiff_voter97(guess1, guess2, ham2dof_model,\
+                            half_period_model, n_turn, parameters):
     """
     Returns the difference of x(or y) coordinates of the guess initial condition and the ith turning point
 
@@ -457,36 +420,37 @@ def configdiff_uncoupled(guess1, guess2, ham2dof_model, \
     RelTol = 3.e-10
     AbsTol = 1.e-10 
     
-    f1 = lambda t,x: ham2dof_model(t,x,par) 
+    f1 = lambda t,x: ham2dof_model(t,x,parameters) 
     soln1 = solve_ivp(f1, TSPAN, guess1, method='RK45', dense_output=True, \
-                      events = lambda t,x: half_period_model(t, x, par), rtol=RelTol, atol=AbsTol)
+                      events = lambda t,x: half_period_model(t, x, parameters), rtol=RelTol, atol=AbsTol)
     te1 = soln1.t_events[0]
-    t1 = [0,te1[n_turn]]#[0,te1[1]]
+    t1 = [0,te1[n_turn]]
     turn1 = soln1.sol(t1)
     x_turn1 = turn1[0,-1] 
     y_turn1 = turn1[1,-1]
     x_diff1 = guess1[0] - x_turn1
     y_diff1 = guess1[1] - y_turn1
     
-    f2 = lambda t,x: ham2dof_model(t,x,par) 
+    f2 = lambda t,x: ham2dof_model(t,x,parameters) 
     soln2 = solve_ivp(f2, TSPAN, guess2,method='RK45', dense_output=True, \
-                      events = lambda t,x: half_period_model(t, x, par), rtol=RelTol, atol=AbsTol)
+                      events = lambda t,x: half_period_model(t, x, parameters), rtol=RelTol, atol=AbsTol)
     te2 = soln2.t_events[0]
-    t2 = [0,te2[n_turn]]#[0,te2[1]]
+    t2 = [0,te2[n_turn]] #[0,te2[1]]
     turn2 = soln2.sol(t2)
     x_turn2 = turn2[0,-1] 
     y_turn2 = turn2[1,-1] 
     x_diff2 = guess2[0] - x_turn2
     y_diff2 = guess2[1] - y_turn2
     
+
     print("Initial guess1 %s, initial guess2 %s, \
-            x_diff1 is %s, x_diff2 is %s" %(guess1, guess2, x_diff1, x_diff2))
+            y_diff1 is %s, y_diff2 is %s" %(guess1, guess2, y_diff1, y_diff2))
         
-    return x_diff1, x_diff2
+    return y_diff1, y_diff2
 
 
-def guess_coords_uncoupled(guess1, guess2, i, n, e, \
-                            get_coord_model, par):
+def guess_coords_voter97(guess1, guess2, i, n, e, \
+                            get_coord_model,parameters):
     """
     Returns x and y (configuration space) coordinates as guess for the next iteration of the turning point based on confifuration difference method
 
@@ -522,18 +486,33 @@ def guess_coords_uncoupled(guess1, guess2, i, n, e, \
 
     """
     
+    #h = (guess2[0] - guess1[0])*i/n
+    #print("h is ",h)
+    #xguess = guess1[0] + h
+    #f = lambda y: get_coord_model(xguess,y,e,parameters)
+    #yguess = optimize.newton(f, 0)   
+    
+    #h = (guess2[1] - guess1[1])*i/n # h is defined for dividing the interval
+    #print("h is ",h)
+    #yguess = guess1[1] + h
+    #f = lambda x: get_coord_model(x,yguess,e,parameters)
+    #xguess = optimize.newton(f,-0.2) # to find the x coordinate for a given y
+    
     h = (guess2[0] - guess1[0])*i/n
     print("h is ",h)
-    xguess = guess1[0]+h
-    f = lambda y: get_coord_model(xguess,y,e,par)
-    yanalytic = math.sqrt((e + 0.5*par[3]*xguess**2-0.25*par[4]*xguess**4)/(0.5*par[5])) #uncoupled
-    yguess = optimize.newton(f,yanalytic)   # to find the x coordinate for a given y 
+    yguess = guess1[0] + h
+    f = lambda x: get_coord_model(x,yguess,e,parameters)
+    xanalytic = (1/(2*pi))*(np.arccos((e - 2*parameters[3]*pi*yguess**2)/(1 + parameters[2]*yguess)))
+    xguess = optimize.newton(f,xanalytic) 
+    
+    
     
     return xguess, yguess
 
-def plot_iter_orbit_uncoupled(x, ax, e, par):
+
+def plot_iter_orbit_voter97(x, ax, e, parameters):
     """ 
-    Plots the orbit in the 3D space of (x,y,p_y) coordinates with the initial and final points marked with star and circle. 
+    Plots the orbit in the 3D space of (x,y,p_x) coordinates with the initial and final points marked with star and circle. 
 
     Parameters
     ----------
@@ -554,7 +533,7 @@ def plot_iter_orbit_uncoupled(x, ax, e, par):
     Empty - None
 
     """
-    
+
     label_fs = 10
     axis_fs = 15 # fontsize for publications 
     
@@ -565,11 +544,15 @@ def plot_iter_orbit_uncoupled(x, ax, e, par):
     ax.set_xlabel(r'$x$', fontsize=axis_fs)
     ax.set_ylabel(r'$y$', fontsize=axis_fs)
     ax.set_zlabel(r'$p_y$', fontsize=axis_fs)
+    ax.set_title(r'$\Delta E$ = %e' %(np.mean(e) - parameters[4]) ,fontsize=axis_fs)
+    ax.set_xlim(-0.1, 0.1)
+    
 
-    return 
+    return
 
 
-def ham2dof_uncoupled(t, x, par):
+
+def ham2dof_voter97(t, x, parameters):
     """ 
     Returns the Hamiltonian vector field (Hamilton's equations of motion) 
     
@@ -590,23 +573,24 @@ def ham2dof_uncoupled(t, x, par):
     -------
     xDot : float (list of size 4)
         right hand side of the vector field evaluated at the phase space coordinates, x, at time instant, t
-
-    """
+    """ 
     
     xDot = np.zeros(4)
     
-    dVdx = -par[3]*x[0]+par[4]*(x[0])**3
-    dVdy = par[5]*x[1]
-        
-    xDot[0] = x[2]/par[0]
-    xDot[1] = x[3]/par[1]
+    dVdx = -2*pi*np.sin(2*pi*x[0])*(1 + parameters[2]*x[1])
+    dVdy = parameters[2]*np.cos(2*pi*x[0]) + 2*parameters[3]*pi*x[1]
+
+    xDot[0] = x[2]
+    xDot[1] = x[3]
     xDot[2] = -dVdx 
     xDot[3] = -dVdy
     
-    return list(xDot)  
+    return list(xDot)
 
 
-def half_period_uncoupled(t, x, par):
+
+
+def half_period_voter97(t,x,parameters):
     """
     Returns the event function 
     
@@ -632,7 +616,6 @@ def half_period_uncoupled(t, x, par):
     
     return x[3]
 
-
-half_period_uncoupled.terminal = True # terminate the integration. 
-half_period_uncoupled.direction=0 # zero of the event function can be approached from either direction and will trigger the terminate
-
+        
+half_period_voter97.terminal = True # terminate the integration.
+half_period_voter97.direction = 0 # zero of the event function can be approached from either direction and will trigger the terminate
