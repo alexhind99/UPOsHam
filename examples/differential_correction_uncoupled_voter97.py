@@ -188,7 +188,7 @@ def upo(deltaE_vals, linecolor,save_final_plot = True, show_final_plot = True):
         plt.show()
 
     if save_final_plot:  
-        plt.savefig(path_to_saveplot + 'diff_corr_uncoupled_upos_3.pdf', \
+        plt.savefig(path_to_saveplot + 'diff_corr_uncoupled_upos_fin.pdf', \
                     format='pdf', bbox_inches='tight')
 
 

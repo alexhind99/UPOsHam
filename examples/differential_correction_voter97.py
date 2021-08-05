@@ -32,17 +32,14 @@ show_final_plot = True
 N = 4          # dimension of phase space
 MASS_A = 1.00
 MASS_B = 1.00
-SADDLE_ENERGY = 1.0 #Energy of the saddle
 
-d_1 = 1   #Coupling term
-d_2 = 0
+d_1 = 4   #Coupling term
+d_2 = 2*pi    #Optimising transition states
 
 parameters = np.array([MASS_A, MASS_B, d_1, d_2])
 eqNum = 1
-#deltaE_vals = [0.01, 0.1, 1.00, 2.0, 4.0]
-#linecolor = ['b','r','g','m','c']
-deltaE_vals = [0.1]
-linecolor = ['b']
+deltaE_vals = [0.1, 0.5, 1]
+linecolor = ['b', 'r', 'g']
 
 
 eqPt = diffcorr.get_eq_pts(eqNum, voter97.init_guess_eqpt_voter97, \
@@ -54,10 +51,10 @@ eSaddle = diffcorr.get_total_energy([eqPt[0],eqPt[1],0,0], \
                                     voter97.pot_energy_voter97, parameters) 
 
 #%%
-nFam = 10 # use nFam = 10 for low energy
+nFam = 100 # use nFam = 10 for low energy
 
 # first two amplitudes for continuation procedure to get p.o. family
-Ax1  = 2.e-5 # initial amplitude (1 of 2) values to use: 2.e-3
+Ax1  = 1.e-5 # initial amplitude (1 of 2) values to use: 2.e-3
 Ax2  = 2*Ax1 # initial amplitude (2 of 2)
 
 t = time.time()
@@ -122,7 +119,7 @@ for i in range(len(deltaE_vals)):
     
     with open("x0_diffcorr_deltaE%s_voter97.dat" %(deltaE),'a+') as po_target_file:
                     
-        [x0po, T,energyPO] = diffcorr.po_target_energy(x0poTarget,eTarget, \
+        [x0po, T, energyPO] = diffcorr.po_target_energy(x0poTarget,eTarget, \
                                                     po_target_file, \
                                                     voter97.diffcorr_setup_voter97, \
                                                     voter97.conv_coord_voter97, \
@@ -191,21 +188,21 @@ yVec = np.linspace(-2,2,resX)
 xMat, yMat = np.meshgrid(xVec, yVec)
 cset1 = ax.contour(xMat, yMat, diffcorr.get_pot_surf_proj(xVec, yVec, \
                                 voter97.pot_energy_voter97, \
-                                parameters), [0.01,0.1,0.5,1,2,4], \
+                                parameters), [-0.5, 0.1, eSaddle+deltaE_vals[0], eSaddle+deltaE_vals[1], eSaddle+deltaE_vals[2]], \
                                 zdir='z', offset=0, 
                                 linewidths = 1.0, cmap=cm.viridis, \
                                 alpha = 0.8)
 
 ax.scatter(eqPt[0], eqPt[1], s = 50, c = 'r', marker = 'X')
-ax.set_xlabel('$x$', fontsize=axis_fs)
-ax.set_ylabel('$y$', fontsize=axis_fs)
-ax.set_zlabel('$p_y$', fontsize=axis_fs)
+ax.set_xlabel('$q_1$', fontsize=axis_fs)
+ax.set_ylabel('$q_2$', fontsize=axis_fs)
+ax.set_zlabel('$p_2$', fontsize=axis_fs)
 
 
 legend = ax.legend(loc='upper left')
 ax.set_xlim(0, 3)
-ax.set_ylim(-2, 2)
-ax.set_zlim(-2, 2)
+ax.set_ylim(-0.5, 0.5)
+ax.set_zlim(-1, 1)
 
 plt.grid()
 

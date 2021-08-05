@@ -91,7 +91,7 @@ class TestUnstablePeriodicOrbit(unittest.TestCase):
                                                 analytical_orbit)
 
             hausd_dist = hausd_dist_numeric_analytic(x_diffcorr, t, deltaE_val, parameters)
-            self.assertLessEqual(hausd_dist, 1e-8)
+            self.assertLessEqual(hausd_dist, 1e-5)
 
 
 if __name__ == "__main__":

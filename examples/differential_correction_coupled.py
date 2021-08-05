@@ -31,7 +31,7 @@ path_to_saveplot = os.path.join(os.path.dirname(os.path.dirname(__file__)), \
 #%% Setting up parameters for the method and the Hamiltonian system
 
 save_final_plot = True
-show_final_plot = False
+show_final_plot = True
 N = 4               # dimension of phase space
 omega=1.00
 EPSILON_S = 0.0     # Energy of the saddle
@@ -42,8 +42,8 @@ parameters = np.array([1, omega, EPSILON_S, alpha, beta, omega, epsilon])
 eqNum = 1
 #deltaE_vals = [0.01, 0.1, 1.00, 2.0, 4.0]
 #linecolor = ['b','r','g','m','c']
-deltaE_vals = [0.1, 1.00]
-linecolor = ['b','r']
+deltaE_vals = [0.1,0.5, 1.00]
+linecolor = ['b','r','g']
 
 
 eqPt = diffcorr.get_eq_pts(eqNum, coupled.init_guess_eqpt_coupled, \
@@ -197,7 +197,7 @@ yVec = np.linspace(-4,4,resX)
 xMat, yMat = np.meshgrid(xVec, yVec)
 cset1 = ax.contour(xMat, yMat, diffcorr.get_pot_surf_proj(xVec, yVec, \
                                 coupled.pot_energy_coupled, \
-                                parameters), [0.01,0.1,1,2,4], \
+                                parameters), [0.1,0.5, 1.00, 2, 3], \
                                 zdir='z', offset=0, 
                                 linewidths = 1.0, cmap=cm.viridis, \
                                 alpha = 0.8)

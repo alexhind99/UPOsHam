@@ -145,7 +145,7 @@ def guess_lin_voter97(eqPt, Ax, parameters):
          
     """    
  
-    return [1, -parameters[2]/(2*parameters[3]*pi) + Ax, 0, 0]
+    return [eqPt[0], eqPt[1] - Ax, 0, 0]
 
 
 def jacobian_voter97(eqPt, parameters):
